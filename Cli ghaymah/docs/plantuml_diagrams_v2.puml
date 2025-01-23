@@ -1,0 +1,279 @@
+@startuml Class Diagram
+
+' Interfaces
+interface ICommand {
+    +Execute()
+    +Validate()
+}
+
+interface IGaymaaAPI {
+    +Deploy(config: Config): DeployResponse
+    +GetStatus(appID: string): StatusResponse
+    +GetLogs(appID: string): LogsResponse
+    +ValidateToken(): bool
+}
+
+' Main Classes
+class GaymaaCLI {
+    -commands: Map<string, ICommand>
+    -api: IGaymaaAPI
+    -config: Config
+    +Execute()
+    +AddCommand(name: string, cmd: ICommand)
+    +LoadConfig()
+    +ValidateEnvironment()
+}
+
+class Command {
+    +Use: string
+    +Short: string
+    +Long: string
+    +Run(cmd: Command, args: []string)
+    +ValidateArgs(args: []string): bool
+}
+
+class DeployCommand {
+    -config: Config
+    -api: IGaymaaAPI
+    +Execute()
+    -validateConfig()
+    -uploadToGaymaa()
+    -handleDeploymentError()
+    -showDeploymentProgress()
+}
+
+class StatusCommand {
+    -appID: string
+    -api: IGaymaaAPI
+    +Execute()
+    -getAppStatus()
+    -displayStatus()
+    -handleStatusError()
+    -formatStatusOutput()
+}
+
+class LogsCommand {
+    -appID: string
+    -since: string
+    -api: IGaymaaAPI
+    -follow: bool
+    +Execute()
+    -fetchLogs()
+    -displayLogs()
+    -handleLogsError()
+    -streamLogs()
+}
+
+class GaymaaAPI {
+    -baseURL: string
+    -token: string
+    -httpClient: HttpClient
+    +Deploy(config: Config)
+    +GetStatus(appID: string)
+    +GetLogs(appID: string)
+    -handleAPIError()
+    -validateResponse()
+    -refreshToken()
+}
+
+class Config {
+    +AppName: string
+    +DockerfilePath: string
+    +EnvVars: map
+    +Region: string
+    +Resources: ResourceConfig
+    +LoadFromFile(path: string)
+    +Validate(): bool
+}
+
+class ResourceConfig {
+    +CPU: string
+    +Memory: string
+    +Storage: string
+    +Validate(): bool
+}
+
+class DeployResponse {
+    +Status: string
+    +AppID: string
+    +URL: string
+    +Errors: []string
+}
+
+class StatusResponse {
+    +Status: string
+    +LastDeployment: string
+    +Resources: ResourceUsage
+    +Errors: []string
+}
+
+class LogsResponse {
+    +Logs: []LogEntry
+    +Timestamp: string
+    +Source: string
+}
+
+' Relationships
+GaymaaCLI --> "*" ICommand
+ICommand <|.. Command
+Command <|-- DeployCommand
+Command <|-- StatusCommand
+Command <|-- LogsCommand
+IGaymaaAPI <|.. GaymaaAPI
+DeployCommand --> IGaymaaAPI
+StatusCommand --> IGaymaaAPI
+LogsCommand --> IGaymaaAPI
+DeployCommand --> Config
+Config --> ResourceConfig
+GaymaaAPI ..> DeployResponse
+GaymaaAPI ..> StatusResponse
+GaymaaAPI ..> LogsResponse
+
+@enduml
+
+@startuml Sequence Diagram
+
+actor User
+participant CLI
+participant Config
+participant DeployCommand
+participant GaymaaAPI
+participant Cloud
+database Database
+
+== Initialization ==
+User -> CLI: Start
+activate CLI
+CLI -> Config: LoadConfig()
+activate Config
+Config --> CLI: Configuration Loaded
+deactivate Config
+CLI -> GaymaaAPI: ValidateToken()
+activate GaymaaAPI
+GaymaaAPI --> CLI: Token Valid
+deactivate GaymaaAPI
+
+== Deploy Flow ==
+User -> CLI: gaymaa deploy
+activate CLI
+CLI -> DeployCommand: Execute()
+activate DeployCommand
+DeployCommand -> DeployCommand: validateConfig()
+DeployCommand -> GaymaaAPI: Upload Application
+activate GaymaaAPI
+GaymaaAPI -> Cloud: Initialize Deployment
+activate Cloud
+Cloud -> Database: Store Deployment Info
+activate Database
+Database --> Cloud: Stored
+deactivate Database
+Cloud --> GaymaaAPI: Deployment Started
+GaymaaAPI -> Cloud: Monitor Progress
+Cloud --> GaymaaAPI: Progress Updates
+Cloud -> Database: Update Status
+Database --> Cloud: Updated
+GaymaaAPI --> DeployCommand: Deployment Status
+deactivate Cloud
+deactivate GaymaaAPI
+DeployCommand -> DeployCommand: showDeploymentProgress()
+DeployCommand --> CLI: Deployment Complete
+deactivate DeployCommand
+CLI --> User: Show Deploy Status
+deactivate CLI
+
+== Status Flow with Error Handling ==
+User -> CLI: gaymaa status
+activate CLI
+CLI -> StatusCommand: Execute()
+activate StatusCommand
+StatusCommand -> GaymaaAPI: Get App Status
+activate GaymaaAPI
+GaymaaAPI -> Cloud: Check Status
+activate Cloud
+alt Successful Case
+    Cloud --> GaymaaAPI: Current Status
+else Error Case
+    Cloud --> GaymaaAPI: Error Response
+    GaymaaAPI -> GaymaaAPI: handleAPIError()
+    GaymaaAPI -> GaymaaAPI: refreshToken()
+    GaymaaAPI -> Cloud: Retry Check Status
+    Cloud --> GaymaaAPI: Current Status
+end
+deactivate Cloud
+GaymaaAPI --> StatusCommand: Status Info
+deactivate GaymaaAPI
+StatusCommand -> StatusCommand: formatStatusOutput()
+StatusCommand --> CLI: Formatted Status
+deactivate StatusCommand
+CLI --> User: Display Status
+deactivate CLI
+
+== Logs Flow with Streaming ==
+User -> CLI: gaymaa logs --follow
+activate CLI
+CLI -> LogsCommand: Execute()
+activate LogsCommand
+LogsCommand -> GaymaaAPI: Request Logs Stream
+activate GaymaaAPI
+loop While --follow flag is true
+    GaymaaAPI -> Cloud: Stream Logs
+    activate Cloud
+    Cloud --> GaymaaAPI: Log Entries
+    deactivate Cloud
+    GaymaaAPI --> LogsCommand: Stream Data
+    LogsCommand -> LogsCommand: displayLogs()
+    LogsCommand --> User: Show Real-time Logs
+end
+deactivate GaymaaAPI
+deactivate LogsCommand
+deactivate CLI
+
+@enduml
+
+@startuml Component Diagram
+
+package "Gaymaa CLI" {
+    [CLI Core] as core
+    [Command Handler] as handler
+    [Config Manager] as config
+    interface "Command Interface" as cmdInterface
+    
+    package "Commands" {
+        [Deploy Command] as deploy
+        [Status Command] as status
+        [Logs Command] as logs
+        [Help Command] as help
+    }
+    
+    package "API Layer" {
+        [API Client] as client
+        [Error Handler] as error
+        [Response Parser] as parser
+    }
+}
+
+cloud "Gaymaa Cloud" {
+    [Load Balancer] as lb
+    [Application Server] as app
+    [Logging Service] as logging
+    database "Database" as db
+}
+
+core --> handler
+handler --> cmdInterface
+deploy ..> cmdInterface
+status ..> cmdInterface
+logs ..> cmdInterface
+help ..> cmdInterface
+
+core --> config
+handler --> client
+client --> error
+client --> parser
+
+client --> lb
+lb --> app
+app --> logging
+app --> db
+
+@enduml

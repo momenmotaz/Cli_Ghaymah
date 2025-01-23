@@ -1,0 +1,16 @@
+# Ghaymah CLI Configuration
+appName: "my-awesome-app"
+dockerfilePath: "./Dockerfile"
+region: "us-east-1"
+
+# Environment Variables
+envVars:
+  NODE_ENV: "production"
+  PORT: "8080"
+  DB_URL: "mongodb://localhost:27017"
+
+# Resource Requirements
+resources:
+  cpu: "1"       # Number of CPU cores
+  memory: "512M" # Memory in MB
+  storage: "1G"  # Storage in GB

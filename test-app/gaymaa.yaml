@@ -1,0 +1,12 @@
+appName: "test-app"
+dockerfilePath: "./Dockerfile"
+region: "us-east-1"
+
+envVars:
+  NODE_ENV: "production"
+  PORT: "3000"
+
+resources:
+  cpu: "0.5"    # نصف CPU
+  memory: "256M" # 256 ميجابايت
+  storage: "1G"  # 1 جيجابايت
