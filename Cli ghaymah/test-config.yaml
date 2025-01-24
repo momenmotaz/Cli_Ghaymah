@@ -1,0 +1,9 @@
+appName: "test-app"
+image: "nginx:latest"
+resources:
+  cpu: "0.5"
+  memory: "256M"
+  storage: "1G"
+envVars:
+  NODE_ENV: "production"
+  PORT: "80"

@@ -14,6 +14,7 @@ type Config struct {
     EnvVars        map[string]string     `yaml:"envVars,omitempty"`
     Region         string                `yaml:"region,omitempty"`
     Resources      types.ResourceConfig  `yaml:"resources,omitempty"`
+    Registry       *types.DockerRegistry `yaml:"registry,omitempty"`
 }
 
 // LoadFromFile loads configuration from a YAML file

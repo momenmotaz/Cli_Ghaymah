@@ -20,6 +20,14 @@ Command line interface for the Ghaymah Cloud Platform.
   - YAML configuration
   - Environment variables
   - Resource limits
+- 🔐 Docker Registry Management
+  - Add private registry credentials
+  - List registered registries
+  - Remove registry access
+- 🎫 API Token Management
+  - Generate secure API tokens
+  - List active tokens
+  - Revoke tokens when needed
 
 ## Installation
 
@@ -51,6 +59,12 @@ appName: "my-app"
 
 # Path to Dockerfile (if building from source)
 dockerfilePath: "./Dockerfile"
+
+# Docker Registry configuration (optional)
+registry:
+  registryUrl: "docker.io"
+  username: "your-username"
+  password: "your-password"
 
 # Deployment region
 region: "us-east-1"
@@ -88,6 +102,37 @@ ghaymah deploy --image username/app:tag
 
 # Deploy using image with custom name
 ghaymah deploy --image username/app:tag --name my-custom-name
+```
+
+### Registry Commands
+
+Manage Docker registry credentials:
+```bash
+# Add new registry credentials
+ghaymah registry add --url docker.io --username user123 --password pass123
+
+# List all registered registries
+ghaymah registry list
+
+# Remove registry credentials
+ghaymah registry remove --url docker.io
+```
+
+### Token Commands
+
+Manage API tokens:
+```bash
+# Generate new API token (default expiry: 30 days)
+ghaymah token generate
+
+# Generate token with custom expiry
+ghaymah token generate --expiry-days 60
+
+# List all active tokens
+ghaymah token list
+
+# Revoke a token
+ghaymah token revoke --token <token-value>
 ```
 
 ### Status Command
@@ -135,6 +180,7 @@ go run main.go
 ```
 
 The server will start on `http://localhost:8080` and display the test token to use.
+You can stop the server at any time by pressing `Ctrl+C` in the terminal.
 
 #### 2. Configure Environment Variables
 
@@ -146,31 +192,46 @@ export GHAYMAH_API_TOKEN="test-token-123"
 
 #### 3. Test CLI Commands
 
-Now you can test all CLI commands:
+Now you can test all CLI commands. When deploying an application, you'll receive a deployment ID that you can use to track the deployment status:
+
 ```bash
-# Deploy an application
+# Deploy an application using a test config
+./ghaymah-cli deploy -c test-config.yaml
+# Output: Successfully deployed! Application ID: deploy-1234567890
+
+# Deploy using image directly
 ./ghaymah-cli deploy --image nginx:latest --name test-app
+# Output: Successfully deployed! Application ID: deploy-1234567890
 
 # Check application status
 ./ghaymah-cli status --name test-app
-
-# View application logs
-./ghaymah-cli logs --name test-app
 ```
 
-The Mock API provides simulated responses for:
-- Application deployment
-- Status checking with resource metrics
-- Log viewing with timestamp-based filtering
+#### 4. Example Test Configuration
 
-#### Mock API Endpoints
+Here's an example `test-config.yaml` file you can use for testing:
 
-The Mock API implements these endpoints:
-- `POST /apps`: Deploy applications
-- `GET /apps/status`: Get application status
-- `GET /apps/logs`: Get application logs
+```yaml
+# Application name
+appName: "test-app"
 
-All endpoints require the `Authorization` header with the test token.
+# Docker image to deploy
+image: "nginx:latest"
+
+# Deployment region
+region: "us-east-1"
+
+# Environment variables for your application
+envVars:
+  NODE_ENV: "development"
+  PORT: "80"
+
+# Resource requirements
+resources:
+  cpu: "0.5"    # Half CPU core
+  memory: "256M" # 256MB memory
+  storage: "1G"  # 1GB storage
+```
 
 ## Common Flags
 
